@@ -12,7 +12,7 @@ public class SwiftFlutterScreenRecordingPlugin: NSObject, FlutterPlugin {
     var videoOutputURL: URL?
     var isRecording = false
     var firstTimestamp: CMTime? 
-    let screenSize = UIScreen.main.bounds
+    // let screenSize = UIScreen.main.bounds
     
     public static func register(with registrar: FlutterPluginRegistrar) {
         let channel = FlutterMethodChannel(name: "flutter_screen_recording", binaryMessenger: registrar.messenger())
@@ -65,9 +65,14 @@ public class SwiftFlutterScreenRecordingPlugin: NSObject, FlutterPlugin {
             
             // Configurar la entrada de video
             let videoSettings: [String: Any] = [
-                AVVideoCodecKey: AVVideoCodecType.h264,
-                AVVideoWidthKey: screenSize.width,
-                AVVideoHeightKey: screenSize.height
+                AVVideoCodecKey  : AVVideoCodecH264,
+                AVVideoWidthKey  : UIScreen.main.bounds.width,
+                AVVideoHeightKey : UIScreen.main.bounds.height,
+                AVVideoCompressionPropertiesKey: [
+                    //AVVideoQualityKey: 1,
+                    AVVideoProfileLevelKey: AVVideoProfileLevelH264HighAutoLevel,
+                    AVVideoAverageBitRateKey: 6000000
+                ]
             ]
             videoWriterInput = AVAssetWriterInput(mediaType: .video, outputSettings: videoSettings)
             videoWriterInput?.expectsMediaDataInRealTime = true

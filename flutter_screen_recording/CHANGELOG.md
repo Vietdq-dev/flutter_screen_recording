@@ -1,3 +1,8 @@
+## 2.0.25
+
+- Android: capture internal/app audio via AudioPlaybackCapture (API 29+) and mux with video
+- iOS: always write ReplayKit `.audioApp` samples into the recording
+
 ## 2.0.24
 
 - Refactor

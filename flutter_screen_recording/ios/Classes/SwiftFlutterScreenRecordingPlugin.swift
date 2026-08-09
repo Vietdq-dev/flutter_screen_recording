@@ -78,17 +78,16 @@ public class SwiftFlutterScreenRecordingPlugin: NSObject, FlutterPlugin {
             videoWriterInput?.expectsMediaDataInRealTime = true
             videoWriter?.add(videoWriterInput!)
             
-            // Configurar la entrada de audio si es necesario
-            if recordAudio {
-                let audioSettings: [String: Any] = [
-                    AVFormatIDKey: kAudioFormatMPEG4AAC,
-                    AVSampleRateKey: 44100,
-                    AVNumberOfChannelsKey: 2
-                ]
-                audioWriterInput = AVAssetWriterInput(mediaType: .audio, outputSettings: audioSettings)
-                audioWriterInput?.expectsMediaDataInRealTime = true
-                videoWriter?.add(audioWriterInput!)
-            }
+            // Always attach an audio writer so ReplayKit `.audioApp` (stream) is saved.
+            // Mic remains optional via recordAudio / isMicrophoneEnabled.
+            let audioSettings: [String: Any] = [
+                AVFormatIDKey: kAudioFormatMPEG4AAC,
+                AVSampleRateKey: 44100,
+                AVNumberOfChannelsKey: 2
+            ]
+            audioWriterInput = AVAssetWriterInput(mediaType: .audio, outputSettings: audioSettings)
+            audioWriterInput?.expectsMediaDataInRealTime = true
+            videoWriter?.add(audioWriterInput!)
             
             // Iniciar la captura con ReplayKit
             recorder.isMicrophoneEnabled = recordAudio
@@ -98,6 +97,8 @@ public class SwiftFlutterScreenRecordingPlugin: NSObject, FlutterPlugin {
                 switch sampleBufferType {
                 case .video:
                     self.handleVideoBuffer(sampleBuffer)
+                case .audioApp:
+                    self.handleAudioBuffer(sampleBuffer)
                 case .audioMic:
                     if recordAudio {
                         self.handleAudioBuffer(sampleBuffer)
@@ -152,17 +153,37 @@ public class SwiftFlutterScreenRecordingPlugin: NSObject, FlutterPlugin {
         if #available(iOS 11.0, *) {
             recorder.stopCapture { [weak self] error in
                 guard let self = self else { return }
-                
+
+                let respond: (Any?) -> Void = { value in
+                    DispatchQueue.main.async {
+                        result(value)
+                    }
+                }
+
+                guard let writer = self.videoWriter, writer.status == .writing else {
+                    self.videoWriter?.cancelWriting()
+                    self.videoWriterInput = nil
+                    self.audioWriterInput = nil
+                    self.videoWriter = nil
+                    if let error = error {
+                        respond(FlutterError(code: "STOP_ERROR", message: "Failed to stop recording", details: error.localizedDescription))
+                    } else {
+                        respond(FlutterError(code: "STOP_ERROR", message: "Recording produced no video frames", details: nil))
+                    }
+                    return
+                }
+
                 self.videoWriterInput?.markAsFinished()
                 self.audioWriterInput?.markAsFinished()
-                self.videoWriter?.finishWriting {
-                    if let error = error {
-                        result(FlutterError(code: "STOP_ERROR", message: "Failed to stop recording", details: error.localizedDescription))
-                    } else {
-                        let alertController = UIAlertController(title: "Your video was successfully saved", message: nil, preferredStyle: .alert)
-                        let defaultAction = UIAlertAction(title: "OK", style: .default, handler: nil)
-                        alertController.addAction(defaultAction)
-                        result(self.videoOutputURL?.path)
+                writer.finishWriting {
+                    DispatchQueue.main.async {
+                        if let error = error {
+                            result(FlutterError(code: "STOP_ERROR", message: "Failed to stop recording", details: error.localizedDescription))
+                        } else if writer.status == .failed {
+                            result(FlutterError(code: "STOP_ERROR", message: writer.error?.localizedDescription ?? "Failed to finish writing", details: nil))
+                        } else {
+                            result(self.videoOutputURL?.path)
+                        }
                     }
                 }
             }

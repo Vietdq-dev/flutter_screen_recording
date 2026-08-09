@@ -9,7 +9,6 @@ import android.media.MediaCodecInfo
 import android.media.MediaFormat
 import android.media.MediaMuxer
 import android.media.projection.MediaProjection
-import android.annotation.RequiresApi
 import android.os.Build
 import android.util.Log
 import java.io.IOException
@@ -20,7 +19,6 @@ import kotlin.math.min
  * Captures app/system media playback via [AudioPlaybackCaptureConfiguration]
  * and encodes AAC into an mp4 container (audio-only), matching AOSP screen-record.
  */
-@RequiresApi(Build.VERSION_CODES.Q)
 class InternalAudioRecorder(
     outFile: String,
     mediaProjection: MediaProjection,

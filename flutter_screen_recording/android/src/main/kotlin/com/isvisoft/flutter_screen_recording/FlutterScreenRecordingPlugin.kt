@@ -318,7 +318,6 @@ class FlutterScreenRecordingPlugin :
         } catch (e: Exception) {
             Log.e(TAG, "MediaRecorder stop error: ${e.message}", e)
         } finally {
-            stopScreenSharing()
             try {
                 mMediaRecorder?.release()
             } catch (_: Exception) {
@@ -326,6 +325,7 @@ class FlutterScreenRecordingPlugin :
             mMediaRecorder = null
         }
 
+        // End internal audio while MediaProjection is still alive.
         val audioRecorder = internalAudioRecorder
         internalAudioRecorder = null
         try {
@@ -333,6 +333,8 @@ class FlutterScreenRecordingPlugin :
         } catch (e: Exception) {
             Log.e(TAG, "Internal audio end error: ${e.message}", e)
         }
+
+        stopScreenSharing()
 
         val finalPath = mFileName ?: videoPath
         val audioPath = mTempAudioPath
